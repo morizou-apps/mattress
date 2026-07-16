@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ベッドマップ</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+body{font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif;background:#FFFDE7;color:#4E342E;padding:.6rem}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px}
+.page-title{font-size:15px;font-weight:700;color:#5D4037}
+.stats{display:flex;gap:5px;flex-wrap:wrap}
+.stat{background:#FFF9C4;border:1.5px solid #F9E44A;border-radius:9px;padding:4px 11px;text-align:center}
+.stat-label{font-size:10px;color:#8D6E63;font-weight:500}
+.stat-val{font-size:16px;font-weight:700;color:#4E342E}
+.stat-val.blue{color:#1565C0}
+.stat-val.red{color:#C62828}
+.tabs{display:flex;gap:4px;margin-bottom:10px;border-bottom:2px solid #F0D060;padding-bottom:0}
+.tab-btn{padding:7px 16px;font-size:13px;font-weight:700;border:none;background:none;color:#A1887F;font-family:inherit;cursor:pointer;border-radius:8px 8px 0 0;border-bottom:3px solid transparent;margin-bottom:-2px}
+.tab-btn.active{color:#5D4037;background:#FFF9C4;border-bottom:3px solid #F9A825}
+.page{display:none}
+.page.active{display:block}
+.map-outer{background:#FFFDE7;border-radius:12px;border:2px solid #F9E44A;padding:8px;margin-bottom:8px}
+.ward-row{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px;align-items:flex-start}
+.ward-row::-webkit-scrollbar{height:4px}
+.ward-row::-webkit-scrollbar-thumb{background:#F9E44A;border-radius:2px}
+.room-block{border-radius:8px;border:1.5px solid #F0D060;background:#FFFEF5;padding:4px;display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.room-num{font-size:10px;font-weight:700;color:#8D6E63;margin-bottom:3px;text-align:center;white-space:nowrap}
+.bed-grid{display:grid;gap:3px}
+.bed-slot{border-radius:6px;border:2px dashed #E0C040;background:#FFFEF5;width:62px;height:62px;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;overflow:hidden}
+.bed-slot.target-mode{border:2.5px solid #64B5F6;background:#E3F2FD}
+.bed-num-label{position:absolute;top:2px;left:3px;font-size:8px;color:#BCAAA4;line-height:1;pointer-events:none;font-weight:600}
+.bed-inner{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+.bed-empty{font-size:10px;color:#D4B896;font-weight:600}
+.mat-chip{border-radius:7px;border:2.5px solid transparent;font-size:10px;font-weight:700;padding:3px 4px;text-align:center;width:55px;line-height:1.35;display:flex;flex-direction:column;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.mat-chip.selected{outline:3px solid #1565C0;outline-offset:2px;transform:scale(1.08)}
+.mat-chip.free{box-shadow:none!important}
+.mat-chip .chip-num{font-size:12px;font-weight:800}
+.mat-chip .chip-name{font-size:8px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:51px;margin-top:1px}
+.mat-chip .chip-since{font-size:8px;opacity:.75;white-space:nowrap;margin-top:1px}
+.ns-row{display:flex;justify-content:center;margin:5px 0}
+.ns-block{background:#FFF9C4;border:1.5px solid #F9E44A;border-radius:8px;padding:5px 18px;font-size:11px;font-weight:700;color:#8D6E63}
+.bottom-zones{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;align-items:flex-start}
+.zone-box{border-radius:10px;padding:7px;display:flex;flex-direction:column}
+.zone-box.warehouse{background:#FFFEF5;border:2px dashed #E0C040;flex:1;min-width:140px}
+.zone-box.repair-zone{background:#FFF0F0;border:2px dashed #FFAB91;width:150px;flex-shrink:0}
+.zone-box.loan-zone{background:#E3F2FD;border:2px dashed #90CAF9;width:150px;flex-shrink:0}
+.zone-box.target-mode.warehouse{border:2.5px solid #AED581;background:#F1F8E9}
+.zone-box.target-mode.repair-zone{border:2.5px solid #FF8A65;background:#FFE0B2}
+.zone-box.target-mode.loan-zone{border:2.5px solid #42A5F5;background:#BBDEFB}
+.zone-box-label{font-size:11px;font-weight:700;color:#8D6E63;margin-bottom:4px;pointer-events:none}
+.zone-box.repair-zone .zone-box-label{color:#BF360C}
+.zone-box.loan-zone .zone-box-label{color:#1565C0}
+.zone-tokens{display:flex;flex-wrap:wrap;gap:4px;min-height:30px}
+.wh-footer{display:flex;align-items:center;justify-content:space-between;margin-top:6px;padding-top:5px;border-top:1.5px solid #F0D060;flex-wrap:wrap;gap:4px}
+.wh-total{font-size:11px;color:#8D6E63;font-weight:500}
+.hint-bar{background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:6px 10px;font-size:12px;color:#1565C0;margin-bottom:8px;text-align:center;font-weight:700;display:none}
+.hint-bar.show{display:block}
+.type-panel{background:#FFFEF5;border-radius:12px;border:1.5px solid #F0D060;padding:8px;margin-bottom:8px}
+.type-panel-title{font-size:12px;font-weight:700;color:#8D6E63;margin-bottom:7px}
+.type-rows{display:flex;flex-direction:column;gap:6px}
+.type-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.type-badge{border-radius:6px;border:2px solid transparent;font-size:11px;font-weight:700;padding:3px 10px;min-width:76px;text-align:center;flex-shrink:0}
+.type-count{font-size:13px;font-weight:700;color:#4E342E;min-width:22px;text-align:center}
+.type-label{font-size:11px;color:#8D6E63;flex:1}
+.tbtn{height:30px;width:30px;border-radius:7px;font-size:16px;font-weight:700;border:none;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tbtn.minus{color:#BF360C;background:#FFE0B2}
+.tbtn.plus{color:#1565C0;background:#BBDEFB}
+.sub-btn{height:26px;padding:0 8px;border-radius:6px;border:1px solid #F0D060;background:#FFF9C4;color:#8D6E63;font-size:10px;font-family:inherit;cursor:pointer;flex-shrink:0}
+.cancel-bar{display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999}
+.cancel-bar.show{display:block}
+.cancel-bar button{background:#4E342E;color:#FFF9C4;border:none;border-radius:22px;padding:10px 28px;font-size:14px;font-weight:700;font-family:inherit;box-shadow:0 3px 12px rgba(0,0,0,.22)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:#FFF9C4;border:1.5px solid #F9E44A;border-radius:12px;padding:7px 18px;font-size:12px;color:#5D4037;font-weight:600;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;z-index:9999;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.13)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.history-panel{background:#FFFEF5;border-radius:12px;border:1.5px solid #F0D060;padding:8px}
+.hist-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;flex-wrap:wrap;gap:4px}
+.hist-title{font-size:13px;font-weight:700;color:#8D6E63}
+.hist-filter{font-size:11px;color:#A1887F;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.hist-filter select{font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid #F0D060;background:#FFFEF5;color:#4E342E;font-family:inherit}
+.hist-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}
+.hist-table th{text-align:left;font-weight:700;color:#8D6E63;padding:4px 5px;border-bottom:2px solid #F0D060;background:#FFF9C4;font-size:10px}
+.hist-table td{padding:4px 5px;color:#4E342E;border-bottom:1px solid #FDF5C0}
+.staff-panel{background:#FFFEF5;border-radius:12px;border:1.5px solid #F0D060;padding:12px;margin-bottom:8px}
+.staff-panel h2{font-size:13px;font-weight:700;color:#8D6E63;margin-bottom:10px}
+.staff-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.staff-item{display:flex;align-items:center;gap:8px}
+.staff-item input{flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid #F0D060;background:#FFFEF5;color:#4E342E;font-size:14px;font-family:inherit;outline:none}
+.staff-del{height:32px;width:32px;border-radius:7px;border:none;background:#FFE0B2;color:#BF360C;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0}
+.staff-add-row{display:flex;gap:8px;margin-top:4px}
+.staff-add-row input{flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid #F0D060;background:#FFFEF5;color:#4E342E;font-size:14px;font-family:inherit;outline:none}
+.add-btn{height:36px;padding:0 16px;border-radius:8px;border:none;background:#BBDEFB;color:#1565C0;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap}
+.export-panel{background:#FFFEF5;border-radius:12px;border:1.5px solid #F0D060;padding:12px;margin-bottom:8px}
+.export-panel h2{font-size:13px;font-weight:700;color:#8D6E63;margin-bottom:6px}
+.export-panel p{font-size:12px;color:#A1887F;margin-bottom:12px;line-height:1.6}
+.export-btn{width:100%;padding:14px;border-radius:10px;border:none;background:#E8F5E9;color:#2E7D32;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:8px}
+.lock-screen{display:none;position:fixed;inset:0;background:rgba(255,253,231,.97);z-index:2000;align-items:center;justify-content:center;flex-direction:column}
+.lock-screen.open{display:flex}
+.lock-box{background:#FFFEF5;border-radius:18px;border:2px solid #F9E44A;padding:2rem 1.5rem;width:300px;max-width:92vw;box-shadow:0 8px 30px rgba(0,0,0,.13);text-align:center}
+.lock-title{font-size:17px;font-weight:800;color:#5D4037;margin-bottom:6px}
+.lock-sub{font-size:12px;color:#A1887F;margin-bottom:18px}
+.lock-staff-list{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto}
+.lock-staff-btn{padding:12px;border-radius:10px;border:1.5px solid #F0D060;background:#FFF9C4;color:#4E342E;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;text-align:center;transition:background .12s}
+.lock-staff-btn:active{background:#FFF59D}
+.lock-current{font-size:12px;color:#8D6E63;margin-top:14px}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(93,64,55,.45);z-index:1000;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#FFFDE7;border-radius:16px;border:2px solid #F9E44A;padding:1.3rem;width:320px;max-width:93vw;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.modal-title{font-size:15px;font-weight:800;color:#4E342E;margin-bottom:1rem}
+.form-row{margin-bottom:12px}
+.form-row label{font-size:12px;color:#8D6E63;display:block;margin-bottom:4px;font-weight:600}
+.form-row input[type=number],.form-row select{width:100%;padding:8px 10px;border-radius:8px;border:1.5px solid #F0D060;background:#FFFEF5;color:#4E342E;font-size:15px;font-family:inherit;outline:none}
+.modal-actions{display:flex;gap:8px;margin-top:14px}
+.modal-actions button{flex:1;padding:10px;border-radius:9px;font-size:14px;font-weight:700;border:none;font-family:inherit}
+.btn-cancel{background:#FFF9C4;color:#5D4037;border:1.5px solid #F0D060!important}
+.btn-primary{background:#BBDEFB;color:#1565C0}
+.btn-danger{background:#FFE0B2;color:#BF360C}
+.warn-box{font-size:12px;color:#BF360C;background:#FFF0F0;padding:7px 9px;border-radius:7px;margin-top:6px;display:none;border:1px solid #FFAB91}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="page-title">🛏 ベッドマップ</span>
+  <div class="stats">
+    <div class="stat"><div class="stat-label">定数</div><div class="stat-val" id="cnt-total">0</div></div>
+    <div class="stat"><div class="stat-label">使用中</div><div class="stat-val blue" id="cnt-use">0</div></div>
+    <div class="stat"><div class="stat-label">空き</div><div class="stat-val" id="cnt-free">0</div></div>
+    <div class="stat"><div class="stat-label">修理中</div><div class="stat-val red" id="cnt-repair">0</div></div>
+    <div class="stat"><div class="stat-label">貸出中</div><div class="stat-val" style="color:#1565C0" id="cnt-loan">0</div></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tab-map" onclick="switchTab('map')">🗺 マップ</button>
+  <button class="tab-btn" id="tab-staff" onclick="switchTab('staff')">👤 スタッフ</button>
+  <button class="tab-btn" id="tab-export" onclick="switchTab('export')">📊 出力</button>
+</div>
+
+<div class="hint-bar" id="hint-bar">② 移動先をタップ</div>
+
+<!-- マップページ -->
+<div class="page active" id="page-map">
+  <div class="map-outer">
+    <div class="ward-row" id="top-row"></div>
+    <div class="ns-row"><div class="ns-block">🏥 ナースステーション</div></div>
+    <div class="ward-row" id="bottom-row"></div>
+    <div class="bottom-zones">
+      <div class="zone-box warehouse" id="zone-warehouse">
+        <div class="zone-box-label">🗄 倉庫（空きマット）</div>
+        <div class="zone-tokens" id="wh-tokens"></div>
+        <div class="wh-footer"><span class="wh-total">定数: <strong id="wh-total-num">0</strong> 台</span></div>
+      </div>
+      <div class="zone-box repair-zone" id="zone-repair">
+        <div class="zone-box-label">🔧 修理中</div>
+        <div class="zone-tokens" id="repair-tokens" style="min-height:54px"></div>
+      </div>
+      <div class="zone-box loan-zone" id="zone-loan">
+        <div class="zone-box-label">🏥 貸出中</div>
+        <div class="zone-tokens" id="loan-tokens" style="min-height:54px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="type-panel">
+    <div class="type-panel-title">📦 マット種類・台数管理</div>
+    <div class="type-rows" id="type-rows"></div>
+  </div>
+
+  <div class="history-panel">
+    <div class="hist-header">
+      <div class="hist-title">📋 使用履歴</div>
+      <div class="hist-filter">
+        マット: <select id="hist-filter-mat"><option value="">全て</option></select>
+        表示: <select id="hist-limit">
+          <option value="15">15件</option><option value="30">30件</option>
+          <option value="50">50件</option><option value="9999">全件</option>
+        </select>
+      </div>
+    </div>
+    <table class="hist-table">
+      <thead><tr>
+        <th style="width:20%">マット</th><th style="width:13%">ベッド</th>
+        <th style="width:12%">開始</th><th style="width:12%">終了</th>
+        <th style="width:9%">日数</th><th style="width:14%">担当</th><th style="width:20%">備考</th>
+      </tr></thead>
+      <tbody id="hist-body"><tr><td colspan="6" style="padding:8px;color:#A1887F">履歴なし</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- スタッフページ -->
+<div class="page" id="page-staff">
+  <div class="staff-panel">
+    <h2>👤 スタッフ名の設定</h2>
+    <div class="staff-list" id="staff-list"></div>
+    <div class="staff-add-row">
+      <input type="text" id="new-staff-input" placeholder="スタッフ名を入力">
+      <button class="add-btn" id="add-staff-btn">＋ 追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 出力ページ -->
+<div class="page" id="page-export">
+  <div class="export-panel">
+    <h2>📊 使用履歴の出力</h2>
+    <p>CSVファイルをダウンロードします。iPadの場合「テキストで表示」からコピーもできます。</p>
+    <button class="export-btn" id="export-all-btn">📥 全履歴をダウンロード（CSV）</button>
+    <button class="export-btn" style="background:#FFF9C4;color:#8D6E63" id="export-month-btn">📥 今月の履歴をダウンロード（CSV）</button>
+    <button class="export-btn" style="background:#E3F2FD;color:#1565C0;margin-top:4px" id="export-text-btn">📋 テキストで表示（コピー用）</button>
+    <textarea id="export-textarea" style="display:none;width:100%;height:200px;margin-top:8px;padding:8px;border-radius:8px;border:1.5px solid #F0D060;font-size:11px;font-family:monospace;background:#FFFEF5;color:#4E342E;resize:vertical" readonly></textarea>
+  </div>
+</div>
+
+<!-- ロック画面 -->
+<div class="lock-screen" id="lock-screen">
+  <div class="lock-box">
+    <div class="lock-title">🛏 ベッドマップ</div>
+    <div class="lock-sub">操作するスタッフ名を選択してください</div>
+    <div class="lock-staff-list" id="lock-staff-list"></div>
+    <div class="lock-current" id="lock-current"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="cancel-bar" id="cancel-bar"><button id="cancel-btn">✕ キャンセル</button></div>
+
+<!-- 削除モーダル -->
+<div class="modal-bg" id="modal-remove">
+  <div class="modal">
+    <div class="modal-title">🗑 マットを削除</div>
+    <div class="form-row"><label>削除するマットを選択</label><select id="remove-select"></select></div>
+    <div class="warn-box" id="remove-warn">⚠ 使用中または修理中です。</div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="remove-cancel">キャンセル</button>
+      <button class="btn-danger" id="remove-ok">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 追加モーダル -->
+<div class="modal-bg" id="modal-add">
+  <div class="modal">
+    <div class="modal-title" id="modal-add-title">➕ マットを追加</div>
+    <div class="form-row"><label>マット番号（任意変更可）</label><input type="number" id="add-mat-num" min="1"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="add-cancel">キャンセル</button>
+      <button class="btn-primary" id="add-ok">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 番号変更モーダル -->
+<div class="modal-bg" id="modal-edit">
+  <div class="modal">
+    <div class="modal-title" id="modal-edit-title">✏️ 番号を変更</div>
+    <div class="form-row"><label>変更するマットを選択</label><select id="edit-select"></select></div>
+    <div class="form-row"><label>新しい番号</label><input type="number" id="edit-new-num" min="1"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="edit-cancel">キャンセル</button>
+      <button class="btn-primary" id="edit-ok">変更する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 病棟選択モーダル -->
+<div class="modal-bg" id="modal-loan">
+  <div class="modal">
+    <div class="modal-title">🏥 貸出先の病棟を選択</div>
+    <div class="form-row"><label>貸出先</label>
+      <select id="loan-ward-select">
+        <option value="6階">6階</option><option value="7階">7階</option>
+        <option value="8階">8階</option><option value="9階">9階</option>
+        <option value="10階">10階</option><option value="11階">11階</option>
+        <option value="12階">12階</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="loan-cancel">キャンセル</button>
+      <button class="btn-primary" id="loan-ok">貸出する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SK='airmat_v10';
+
+const TYPES=[
+  {key:'os',label:'オスカー',  short:'オ',bg:'#E8F5E9',border:'#A5D6A7',text:'#2E7D32'},
+  {key:'ad',label:'アドバン',  short:'ア',bg:'#EDE7F6',border:'#CE93D8',text:'#4A148C'},
+  {key:'st',label:'ステージア',short:'ス',bg:'#E1F5FE',border:'#81D4FA',text:'#01579B'},
+  {key:'mu',label:'ムレーズ',  short:'ム',bg:'#FCE4EC',border:'#F48FB1',text:'#880E4F'},
+];
+// 初期台数
+const INIT_COUNTS={os:1,ad:2,st:6,mu:19};
+
+const TOP_ROOMS=[
+  {id:'17',beds:['17-1','17-2','17-3']},
+  {id:'16',beds:['16']},{id:'15',beds:['15']},{id:'14',beds:['14']},
+  {id:'13',beds:['13']},{id:'12',beds:['12']},{id:'11',beds:['11']},{id:'10',beds:['10']},
+  {id:'9',beds:['9-1','9-2','9-3','9-4']},
+  {id:'8',beds:['8']},{id:'7',beds:['7']},
+  {id:'6',beds:['6-1','6-2','6-3','6-4']},
+  {id:'5',beds:['5-1','5-2','5-3','5-4']},
+  {id:'4',beds:['4-1','4-2','4-3','4-4']},
+  {id:'3',beds:['3-1','3-2','3-3','3-4']},
+  {id:'2',beds:['2']}
+];
+const BOT_ROOMS=[
+  {id:'18',beds:['18-1','18-2']},
+  {id:'19',beds:['19-1','19-2','19-3']},
+  {id:'20',beds:['20']},{id:'21',beds:['21']},{id:'22',beds:['22']},{id:'23',beds:['23']},
+  {id:'R',beds:['R-2','R-3','R-4','R-5'],name:'観察室'}
+];
+
+function today(){return new Date().toISOString().slice(0,10)}
+function fmtDate(d){if(!d)return'';const[y,m,dd]=d.split('-');return m+'/'+dd}
+function daysSince(d){if(!d)return 0;return Math.round((new Date()-new Date(d))/86400000)}
+function getType(key){return TYPES.find(t=>t.key===key)||TYPES[0]}
+
+// マットID形式: "mu-1", "os-2" など
+function makeMatId(typeKey,num){return typeKey+'-'+num;}
+function parseMatId(id){const p=id.split('-');return{typeKey:p[0],num:parseInt(p[1])};}
+function matLabel(id){const{num}=parseMatId(id);return '#'+String(num).padStart(2,'0');}
+
+function initData(){
+  const mats={};
+  TYPES.forEach(t=>{
+    const count=INIT_COUNTS[t.key]||0;
+    for(let i=1;i<=count;i++){
+      const id=makeMatId(t.key,i);
+      mats[id]={id,type:t.key,num:i,location:'warehouse',since:null};
+    }
+  });
+  return{mats,history:[],staff:['スタッフA','スタッフB','スタッフC']};
+}
+
+function load(){
+  try{const s=localStorage.getItem(SK);if(s)return JSON.parse(s);}catch(e){}
+  return initData();
+}
+function save(){try{localStorage.setItem(SK,JSON.stringify(state));}catch(e){}}
+
+let state=load();
+let selectedId=null;
+let pendingLoanId=null;
+let addTypeKey=null;
+let editTypeKey=null;
+
+function onTap(el,fn){
+  let moved=false;
+  el.addEventListener('touchstart',()=>{moved=false},{passive:true});
+  el.addEventListener('touchmove',()=>{moved=true},{passive:true});
+  el.addEventListener('touchend',e=>{if(!moved){e.preventDefault();fn(e);}});
+  el.addEventListener('click',fn);
+}
+
+function isSpecial(loc){return loc==='warehouse'||loc==='repair'||loc.startsWith('loan:');}
+
+function switchTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('page-'+name).classList.add('active');
+  if(name==='staff')renderStaff();
+}
+
+/* ---- スタッフ ---- */
+function renderStaff(){
+  const list=document.getElementById('staff-list');list.innerHTML='';
+  (state.staff||[]).forEach((name,i)=>{
+    const row=document.createElement('div');row.className='staff-item';
+    row.innerHTML='<input type="text" value="'+name+'" placeholder="スタッフ名"><button class="staff-del">✕</button>';
+    row.querySelector('input').addEventListener('change',e=>{state.staff[i]=e.target.value.trim();save();});
+    onTap(row.querySelector('.staff-del'),()=>{state.staff.splice(i,1);save();renderStaff();});
+    list.appendChild(row);
+  });
+}
+onTap(document.getElementById('add-staff-btn'),()=>{
+  const inp=document.getElementById('new-staff-input');
+  const v=inp.value.trim();if(!v)return;
+  if(!state.staff)state.staff=[];
+  state.staff.push(v);inp.value='';save();renderStaff();showToast(v+' を追加しました');
+});
+
+/* ---- 種類パネル ---- */
+function renderTypePanel(){
+  const rows=document.getElementById('type-rows');rows.innerHTML='';
+  TYPES.forEach(t=>{
+    const mats=Object.values(state.mats).filter(m=>m.type===t.key);
+    const used=mats.filter(m=>!isSpecial(m.location)).length;
+    const free=mats.filter(m=>m.location==='warehouse').length;
+    const rep=mats.filter(m=>m.location==='repair').length;
+    const row=document.createElement('div');row.className='type-row';
+    row.innerHTML=
+      '<div class="type-badge" style="background:'+t.bg+';border-color:'+t.border+';color:'+t.text+'">'+t.label+'</div>'+
+      '<button class="tbtn minus">−</button>'+
+      '<span class="type-count">'+mats.length+'</span>'+
+      '<button class="tbtn plus">＋</button>'+
+      '<span class="type-label">台（使用:'+used+'/空き:'+free+'/修理:'+rep+'）</span>'+
+      '<button class="sub-btn" data-act="edit">番号変更</button>';
+    onTap(row.querySelector('.tbtn.minus'),()=>openRemoveModal(t.key));
+    onTap(row.querySelector('.tbtn.plus'),()=>openAddModal(t.key));
+    onTap(row.querySelector('[data-act="edit"]'),()=>openEditModal(t.key));
+    rows.appendChild(row);
+  });
+}
+
+/* ---- 追加モーダル ---- */
+function openAddModal(typeKey){
+  addTypeKey=typeKey;
+  const t=getType(typeKey);
+  document.getElementById('modal-add-title').textContent='➕ '+t.label+' を追加';
+  // 次の空き番号を提案
+  const usedNums=Object.values(state.mats).filter(m=>m.type===typeKey).map(m=>m.num);
+  let next=1;while(usedNums.includes(next))next++;
+  document.getElementById('add-mat-num').value=next;
+  document.getElementById('modal-add').classList.add('open');
+}
+onTap(document.getElementById('add-cancel'),()=>document.getElementById('modal-add').classList.remove('open'));
+onTap(document.getElementById('add-ok'),()=>{
+  const num=parseInt(document.getElementById('add-mat-num').value);
+  if(!num||isNaN(num)||num<1){showToast('番号を入力してください');return;}
+  const id=makeMatId(addTypeKey,num);
+  if(state.mats[id]){showToast(getType(addTypeKey).short+String(num).padStart(2,'0')+' はすでに存在します');return;}
+  state.mats[id]={id,type:addTypeKey,num,location:'warehouse',since:null};
+  addHist(id,'—',today(),null,getType(addTypeKey).label+' 追加');
+  save();document.getElementById('modal-add').classList.remove('open');
+  renderAll();updateHistFilter();
+  showToast(matLabel(id)+' を追加しました');
+});
+
+/* ---- 番号変更モーダル ---- */
+function openEditModal(typeKey){
+  editTypeKey=typeKey;
+  const t=getType(typeKey);
+  document.getElementById('modal-edit-title').textContent='✏️ '+t.label+' の番号を変更';
+  const mats=Object.values(state.mats).filter(m=>m.type===typeKey).sort((a,b)=>a.num-b.num);
+  if(!mats.length){showToast(t.label+'のマットがありません');return;}
+  const sel=document.getElementById('edit-select');sel.innerHTML='';
+  mats.forEach(m=>{
+    const opt=document.createElement('option');opt.value=m.id;
+    const loc=m.location==='warehouse'?'倉庫':m.location==='repair'?'修理中':isSpecial(m.location)?m.location:m.location;
+    opt.textContent=matLabel(m.id)+' ['+loc+']';
+    sel.appendChild(opt);
+  });
+  sel.onchange=()=>{const m=state.mats[sel.value];if(m)document.getElementById('edit-new-num').value=m.num;};
+  sel.dispatchEvent(new Event('change'));
+  document.getElementById('modal-edit').classList.add('open');
+}
+onTap(document.getElementById('edit-cancel'),()=>document.getElementById('modal-edit').classList.remove('open'));
+onTap(document.getElementById('edit-ok'),()=>{
+  const oldId=document.getElementById('edit-select').value;
+  const newNum=parseInt(document.getElementById('edit-new-num').value);
+  if(!newNum||isNaN(newNum)||newNum<1){showToast('番号を入力してください');return;}
+  const newId=makeMatId(editTypeKey,newNum);
+  if(newId!==oldId&&state.mats[newId]){showToast(matLabel(newId)+' はすでに存在します');return;}
+  if(newId===oldId){document.getElementById('modal-edit').classList.remove('open');return;}
+  const m=state.mats[oldId];
+  state.mats[newId]={...m,id:newId,num:newNum};
+  delete state.mats[oldId];
+  state.history.forEach(h=>{if(h.mat===oldId)h.mat=newId;});
+  save();document.getElementById('modal-edit').classList.remove('open');
+  renderAll();updateHistFilter();
+  showToast(matLabel(oldId)+' → '+matLabel(newId)+' に変更しました');
+});
+
+/* ---- 削除モーダル ---- */
+function openRemoveModal(typeKey){
+  const mats=Object.values(state.mats).filter(m=>m.type===typeKey).sort((a,b)=>a.num-b.num);
+  if(!mats.length){showToast(getType(typeKey).label+'のマットがありません');return;}
+  const sel=document.getElementById('remove-select');sel.innerHTML='';
+  mats.forEach(m=>{
+    const opt=document.createElement('option');opt.value=m.id;
+    const loc=m.location==='warehouse'?'倉庫':m.location==='repair'?'修理中':isSpecial(m.location)?m.location:m.location;
+    opt.textContent=matLabel(m.id)+' ['+loc+']';
+    sel.appendChild(opt);
+  });
+  sel.onchange=()=>{const m=state.mats[sel.value];document.getElementById('remove-warn').style.display=(m&&m.location!=='warehouse')?'block':'none';};
+  sel.dispatchEvent(new Event('change'));
+  document.getElementById('modal-remove').classList.add('open');
+}
+onTap(document.getElementById('remove-cancel'),()=>document.getElementById('modal-remove').classList.remove('open'));
+onTap(document.getElementById('remove-ok'),()=>{
+  const id=document.getElementById('remove-select').value;
+  const m=state.mats[id];if(!m)return;
+  if(m.location!=='warehouse')addHist(id,m.location,m.since,today(),'削除（廃棄）');
+  else addHist(id,'—',today(),today(),'削除（欠番）');
+  delete state.mats[id];
+  save();document.getElementById('modal-remove').classList.remove('open');
+  renderAll();updateHistFilter();
+  showToast(matLabel(id)+' を削除しました');
+});
+
+/* ---- 選択・移動 ---- */
+function setSelected(id){
+  selectedId=id;
+  document.querySelectorAll('.mat-chip').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('.mat-chip[data-id="'+id+'"]').forEach(c=>c.classList.add('selected'));
+  document.querySelectorAll('.bed-slot,.zone-box').forEach(el=>el.classList.add('target-mode'));
+  document.getElementById('hint-bar').classList.add('show');
+  document.getElementById('cancel-bar').classList.add('show');
+}
+function clearSel(){
+  selectedId=null;
+  document.querySelectorAll('.mat-chip').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('.bed-slot,.zone-box').forEach(el=>el.classList.remove('target-mode'));
+  document.getElementById('hint-bar').classList.remove('show');
+  document.getElementById('cancel-bar').classList.remove('show');
+}
+onTap(document.getElementById('cancel-btn'),()=>clearSel());
+
+function moveMat(target){
+  if(selectedId===null)return;
+  if(target==='loan'){
+    pendingLoanId=selectedId;
+    clearSel();
+    document.getElementById('modal-loan').classList.add('open');
+    return;
+  }
+  doMove(selectedId,target);
+}
+
+function doMove(matId,target){
+  const m=state.mats[matId];if(!m)return;
+  const prev=m.location;
+  if(prev===target){clearSel();return;}
+  const ml=matLabel(matId);
+  const fromBed=!isSpecial(prev);
+  const toBed=!isSpecial(target);
+  if(toBed){
+    const occ=Object.values(state.mats).find(x=>x.location===target&&x.id!==matId);
+    if(occ){showToast(target+'はすでに使用中');clearSel();return;}
+  }
+  if(fromBed&&!toBed){
+    const note=target==='repair'?'修理へ':target.startsWith('loan:')?'貸出('+target.replace('loan:','')+')'  :'返却';
+    addHist(matId,prev,m.since,today(),note);
+    m.location=target;m.since=target!=='warehouse'?today():null;
+    showToast(ml+(target==='repair'?'→修理中':target.startsWith('loan:')?'→貸出('+target.replace('loan:','')+')'  :'→倉庫'));
+  }else if(prev==='warehouse'&&toBed){
+    m.location=target;m.since=today();
+    addHist(matId,target,today(),null,'使用開始');
+    showToast(ml+'→'+target);
+  }else if(prev==='warehouse'&&!toBed&&target!=='warehouse'){
+    m.location=target;m.since=today();showToast(ml+'→'+(target==='repair'?'修理中':'貸出('+target.replace('loan:','')+')'));
+  }else if(prev==='repair'&&target==='warehouse'){
+    addHist(matId,'修理中',m.since,today(),'修理完了');
+    m.location='warehouse';m.since=null;showToast(ml+' 修理完了→倉庫');
+  }else if(prev==='repair'&&toBed){
+    addHist(matId,'修理中',m.since,today(),'修理後使用');
+    m.location=target;m.since=today();
+    addHist(matId,target,today(),null,'使用開始');
+    showToast(ml+'→'+target);
+  }else if(prev.startsWith('loan:')&&target==='warehouse'){
+    addHist(matId,prev,m.since,today(),'貸出返却');
+    m.location='warehouse';m.since=null;showToast(ml+' 返却→倉庫');
+  }else if(prev.startsWith('loan:')&&toBed){
+    addHist(matId,prev,m.since,today(),'貸出後使用');
+    m.location=target;m.since=today();
+    addHist(matId,target,today(),null,'使用開始');
+    showToast(ml+'→'+target);
+  }else if(fromBed&&toBed){
+    addHist(matId,prev,m.since,today(),'移動→'+target);
+    m.location=target;m.since=today();
+    addHist(matId,target,today(),null,'使用開始');
+    showToast(ml+'→'+target);
+  }
+  save();clearSel();renderAll();
+}
+
+/* ---- 病棟選択モーダル ---- */
+onTap(document.getElementById('loan-cancel'),()=>{document.getElementById('modal-loan').classList.remove('open');pendingLoanId=null;});
+onTap(document.getElementById('loan-ok'),()=>{
+  if(!pendingLoanId)return;
+  const ward=document.getElementById('loan-ward-select').value;
+  doMove(pendingLoanId,'loan:'+ward);
+  document.getElementById('modal-loan').classList.remove('open');
+  pendingLoanId=null;
+});
+
+/* ---- チップ生成 ---- */
+function makeChip(m){
+  const isFree=m.location==='warehouse';
+  const isRepair=m.location==='repair';
+  const isLoan=m.location.startsWith('loan:');
+  const t=getType(m.type);
+  const d=document.createElement('div');
+  d.className='mat-chip'+(isFree?' free':'');
+  if(isFree){
+    // 倉庫：種類の色を薄めに
+    d.style.background=t.bg;
+    d.style.borderColor=t.border;
+    d.style.color=t.text;
+    d.style.opacity='.45';
+  } else if(!isFree){
+    d.style.background=t.bg;d.style.borderColor=t.border;d.style.color=t.text;
+    if(isRepair)d.style.filter='saturate(.45)';
+    if(isLoan)d.style.filter='hue-rotate(180deg) saturate(.6)';
+  }
+  d.dataset.id=m.id;
+  const since=(!isFree&&m.since)?'<div class="chip-since">'+fmtDate(m.since)+'〜</div>':'';
+  const loanLbl=isLoan?'<div class="chip-since">'+m.location.replace('loan:','')+'</div>':'';
+  d.innerHTML='<div class="chip-num">'+matLabel(m.id)+'</div><div class="chip-name">'+t.label+'</div>'+since+loanLbl;
+  onTap(d,e=>{
+    e.stopPropagation();
+    if(selectedId===null)setSelected(m.id);
+    else if(selectedId===m.id)clearSel();
+    else moveMat(m.location);
+  });
+  return d;
+}
+
+/* ---- renderAll ---- */
+function renderAll(){
+  [...TOP_ROOMS,...BOT_ROOMS].forEach(room=>{
+    room.beds.forEach(bed=>{
+      const inner=document.getElementById('bi-'+bed);if(!inner)return;
+      inner.innerHTML='';
+      const mat=Object.values(state.mats).find(m=>m.location===bed);
+      if(mat)inner.appendChild(makeChip(mat));
+      else{const e=document.createElement('div');e.className='bed-empty';e.textContent='—';inner.appendChild(e);}
+    });
+  });
+  // 倉庫：種類ごとに改行
+  const whT=document.getElementById('wh-tokens');whT.innerHTML='';
+  TYPES.forEach(t=>{
+    const group=Object.values(state.mats).filter(m=>m.location==='warehouse'&&m.type===t.key).sort((a,b)=>a.num-b.num);
+    if(!group.length)return;
+    const wrap=document.createElement('div');
+    wrap.style.cssText='display:flex;flex-wrap:wrap;gap:4px;width:100%;margin-bottom:8px';
+    group.forEach(m=>wrap.appendChild(makeChip(m)));
+    whT.appendChild(wrap);
+  });
+  // 修理中
+  const rpT=document.getElementById('repair-tokens');rpT.innerHTML='';
+  Object.values(state.mats).filter(m=>m.location==='repair').forEach(m=>rpT.appendChild(makeChip(m)));
+  // 貸出中
+  const lnT=document.getElementById('loan-tokens');lnT.innerHTML='';
+  Object.values(state.mats).filter(m=>m.location.startsWith('loan:')).forEach(m=>lnT.appendChild(makeChip(m)));
+  // カウント
+  const total=Object.keys(state.mats).length;
+  const used=Object.values(state.mats).filter(m=>!isSpecial(m.location)).length;
+  const rep=Object.values(state.mats).filter(m=>m.location==='repair').length;
+  const loan=Object.values(state.mats).filter(m=>m.location.startsWith('loan:')).length;
+  document.getElementById('cnt-total').textContent=total;
+  document.getElementById('cnt-use').textContent=used;
+  document.getElementById('cnt-free').textContent=total-used-rep-loan;
+  document.getElementById('cnt-repair').textContent=rep;
+  document.getElementById('cnt-loan').textContent=loan;
+  document.getElementById('wh-total-num').textContent=total;
+  // 選択状態維持
+  if(selectedId){
+    document.querySelectorAll('.mat-chip[data-id="'+selectedId+'"]').forEach(c=>c.classList.add('selected'));
+    document.querySelectorAll('.bed-slot,.zone-box').forEach(el=>el.classList.add('target-mode'));
+  }
+  renderTypePanel();renderHistory();
+}
+
+/* ---- ベッドスロット・部屋構築 ---- */
+function makeBedSlot(bed){
+  const slot=document.createElement('div');slot.className='bed-slot';
+  const suffix=bed.includes('-')?bed.split('-')[1]:'';
+  if(suffix){const bl=document.createElement('div');bl.className='bed-num-label';bl.textContent=suffix;slot.appendChild(bl);}
+  const inner=document.createElement('div');inner.id='bi-'+bed;inner.className='bed-inner';
+  slot.appendChild(inner);
+  onTap(slot,e=>{e.stopPropagation();if(selectedId!==null)moveMat(bed);});
+  return slot;
+}
+function buildRoom(room){
+  const block=document.createElement('div');block.className='room-block';
+  const lbl=document.createElement('div');lbl.className='room-num';
+  lbl.textContent=room.name||(room.id+'号室');
+  block.appendChild(lbl);
+  const n=room.beds.length;
+  const grid=document.createElement('div');grid.className='bed-grid';
+  if(n===4){
+    grid.style.cssText='grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;grid-template-areas:"b2 b3" "b1 b4"';
+    const[b1,b2,b3,b4]=room.beds;
+    const s1=makeBedSlot(b1);s1.style.gridArea='b1';
+    const s2=makeBedSlot(b2);s2.style.gridArea='b2';
+    const s3=makeBedSlot(b3);s3.style.gridArea='b3';
+    const s4=makeBedSlot(b4);s4.style.gridArea='b4';
+    [s1,s2,s3,s4].forEach(s=>grid.appendChild(s));
+  }else if(n===3){
+    grid.style.cssText='grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;grid-template-areas:"b2 b3" "b1 ."';
+    const[b1,b2,b3]=room.beds;
+    const s1=makeBedSlot(b1);s1.style.gridArea='b1';
+    const s2=makeBedSlot(b2);s2.style.gridArea='b2';
+    const s3=makeBedSlot(b3);s3.style.gridArea='b3';
+    [s1,s2,s3].forEach(s=>grid.appendChild(s));
+  }else if(n===2){
+    grid.style.cssText='grid-template-columns:1fr;grid-template-rows:1fr 1fr;grid-template-areas:"b2" "b1"';
+    const[b1,b2]=room.beds;
+    const s1=makeBedSlot(b1);s1.style.gridArea='b1';
+    const s2=makeBedSlot(b2);s2.style.gridArea='b2';
+    [s1,s2].forEach(s=>grid.appendChild(s));
+  }else{
+    grid.style.cssText='grid-template-columns:1fr';
+    room.beds.forEach(b=>grid.appendChild(makeBedSlot(b)));
+  }
+  block.appendChild(grid);return block;
+}
+
+TOP_ROOMS.forEach(r=>document.getElementById('top-row').appendChild(buildRoom(r)));
+BOT_ROOMS.forEach(r=>document.getElementById('bottom-row').appendChild(buildRoom(r)));
+
+onTap(document.getElementById('zone-warehouse'),e=>{e.stopPropagation();if(selectedId!==null)moveMat('warehouse');});
+onTap(document.getElementById('zone-repair'),e=>{e.stopPropagation();if(selectedId!==null)moveMat('repair');});
+onTap(document.getElementById('zone-loan'),e=>{e.stopPropagation();if(selectedId!==null)moveMat('loan');});
+
+document.querySelectorAll('.modal-bg').forEach(bg=>{
+  onTap(bg,e=>{if(e.target===bg)bg.classList.remove('open');});
+});
+
+/* ---- 履歴 ---- */
+function bedLabel(bed){
+  if(!bed||bed==='—')return bed||'—';
+  if(bed==='warehouse')return '倉庫';
+  if(bed==='repair')return '修理中';
+  if(bed.startsWith('loan:'))return '貸出('+bed.replace('loan:','')+')';
+  return bed;
+}
+function addHist(mat,bed,from,to,note){
+  state.history.unshift({mat,bed,from,to,days:to&&from?daysSince(from):0,note,staff:currentStaff||''});
+  if(state.history.length>500)state.history=state.history.slice(0,500);
+}
+function updateHistFilter(){
+  const sel=document.getElementById('hist-filter-mat');const cur=sel.value;
+  const ids=[...new Set(state.history.map(r=>r.mat))].sort();
+  sel.innerHTML='<option value="">全て</option>'+ids.map(id=>{
+    const m=state.mats[id];
+    return'<option value="'+id+'"'+(id===cur?' selected':'')+'>'+matLabel(id)+(m?' '+getType(m.type).label:'')+'</option>';
+  }).join('');
+}
+function renderHistory(){
+  const tb=document.getElementById('hist-body');
+  const fm=document.getElementById('hist-filter-mat').value;
+  const lim=parseInt(document.getElementById('hist-limit').value)||15;
+  let h=state.history;
+  if(fm)h=h.filter(r=>r.mat===fm);
+  h=h.slice(0,lim);
+  if(!h.length){tb.innerHTML='<tr><td colspan="6" style="padding:8px;color:#A1887F">履歴なし</td></tr>';return;}
+  tb.innerHTML=h.map(r=>{
+    const m=state.mats[r.mat];const t=m?getType(m.type):TYPES[0];
+    const dot='<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+t.bg+';border:1.5px solid '+t.border+';margin-right:3px;vertical-align:middle"></span>';
+    return'<tr><td>'+dot+matLabel(r.mat)+' <span style="font-size:9px;color:#A1887F">'+t.label+'</span></td>'
+      +'<td>'+bedLabel(r.bed)+'</td><td>'+fmtDate(r.from)+'</td>'
+      +'<td>'+(r.to?fmtDate(r.to):'使用中')+'</td>'
+      +'<td>'+(r.days?r.days+'日':'')+'</td>'
+      +'<td style="color:#8D6E63">'+(r.staff||'—')+'</td>'
+      +'<td style="color:#A1887F">'+(r.note||'')+'</td></tr>';
+  }).join('');
+}
+document.getElementById('hist-filter-mat').addEventListener('change',renderHistory);
+document.getElementById('hist-limit').addEventListener('change',renderHistory);
+
+/* ---- CSV出力 ---- */
+function toCSV(rows){
+  const header=['マット','種類','ベッド','開始日','終了日','日数','担当','備考'];
+  const lines=[header.join(',')];
+  rows.forEach(r=>{
+    const m=state.mats[r.mat];const t=m?getType(m.type):{label:''};
+    const bed=bedLabel(r.bed)||'';
+    // ベッド番号をExcelが日付と誤認しないよう=""形式で囲む
+    const bedCell=bed?'="'+bed+'"':'';
+    lines.push([
+      matLabel(r.mat),
+      t.label,
+      bedCell,
+      r.from||'',
+      r.to||'',
+      r.days||'',
+      r.staff||'',
+      r.note||''
+    ].join(','));
+  });
+  return lines.join('\n');
+}
+function downloadCSV(csv,filename){
+  const bom='\uFEFF';
+  try{
+    const blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=filename;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(e){
+    window.open('data:text/csv;charset=utf-8,'+encodeURIComponent(bom+csv),'_blank');
+  }
+}
+onTap(document.getElementById('export-all-btn'),()=>{
+  if(!state.history.length){showToast('履歴がありません');return;}
+  downloadCSV(toCSV(state.history),'エアマット履歴_全件.csv');
+  showToast('ダウンロードしました');
+});
+onTap(document.getElementById('export-month-btn'),()=>{
+  const ym=today().slice(0,7);
+  const rows=state.history.filter(r=>r.from&&r.from.startsWith(ym));
+  if(!rows.length){showToast('今月の履歴がありません');return;}
+  downloadCSV(toCSV(rows),'エアマット履歴_'+ym+'.csv');
+  showToast('ダウンロードしました');
+});
+onTap(document.getElementById('export-text-btn'),()=>{
+  const ta=document.getElementById('export-textarea');
+  if(!state.history.length){showToast('履歴がありません');return;}
+  ta.value=toCSV(state.history);
+  ta.style.display=ta.style.display==='none'?'block':'none';
+  if(ta.style.display==='block'){ta.select();showToast('全選択してコピーしてください');}
+});
+
+const LOCK_MS=30*60*1000;
+let currentStaff='';
+let lockTimer=null;
+let toastTimer=null;
+
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function showLock(){
+  const list=document.getElementById('lock-staff-list');
+  list.innerHTML='';
+  const staffList=state.staff&&state.staff.length?state.staff:['スタッフ未設定'];
+  staffList.forEach(name=>{
+    const btn=document.createElement('button');
+    btn.className='lock-staff-btn';
+    btn.textContent=name;
+    onTap(btn,()=>selectStaff(name));
+    list.appendChild(btn);
+  });
+  document.getElementById('lock-current').textContent=currentStaff?'前回: '+currentStaff:'';
+  document.getElementById('lock-screen').classList.add('open');
+}
+
+function selectStaff(name){
+  currentStaff=name;
+  document.getElementById('lock-screen').classList.remove('open');
+  showToast(name+' さん、こんにちは！');
+  resetLockTimer();
+}
+
+function resetLockTimer(){
+  clearTimeout(lockTimer);
+  lockTimer=setTimeout(()=>showLock(),LOCK_MS);
+}
+
+// 操作があるたびにタイマーリセット
+['touchstart','click','keydown'].forEach(ev=>{
+  document.addEventListener(ev,resetLockTimer,{passive:true});
+});
+
+// 起動時にロック画面を表示
+window.addEventListener('load',()=>{
+  setTimeout(()=>showLock(),100);
+});
+
+renderAll();updateHistFilter();
+</script>
+</body>
+</html>
