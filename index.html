@@ -176,16 +176,16 @@ body{font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif;background:#FFF
 
   <div class="history-panel">
     <div class="hist-header">
-      <div class="hist-title">📋 使用履歴</div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <div class="hist-filter">
-          マット: <select id="hist-filter-mat"><option value="">全て</option></select>
-          表示: <select id="hist-limit">
-            <option value="15">15件</option><option value="30">30件</option>
-            <option value="50">50件</option><option value="9999">全件</option>
-          </select>
-        </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;flex-wrap:wrap;gap:4px">
+        <div class="hist-title">📋 使用履歴</div>
         <button id="hist-clear-btn" style="height:28px;padding:0 10px;border-radius:7px;border:1px solid #FFAB91;background:#FFF0F0;color:#BF360C;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap">🗑 全件削除</button>
+      </div>
+      <div class="hist-filter">
+        マット: <select id="hist-filter-mat"><option value="">全て</option></select>
+        表示: <select id="hist-limit">
+          <option value="15">15件</option><option value="30">30件</option>
+          <option value="50">50件</option><option value="9999">全件</option>
+        </select>
       </div>
     </div>
     <table class="hist-table">
