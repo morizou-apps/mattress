@@ -1,11 +1,12 @@
 <script>
-  const PASSWORD = "6300"; // ←ここを部署用パスワードに変える
-
-  const input = prompt("パスワードを入力してください");
-
-  if (input !== PASSWORD) {
-    document.body.innerHTML = "<h2 style='text-align:center;margin-top:40px;'>アクセスできません</h2>";
+  const PASSWORD = "6300";
+  function checkPassword(){
+    const input = prompt("パスワードを入力してください");
+    if(input === null || input !== PASSWORD){
+      document.body.innerHTML = "<div style='text-align:center;margin-top:80px;font-family:sans-serif'><h2>アクセスできません</h2><p style='margin-top:16px;color:#888'>再度アクセスしてください</p></div>";
+    }
   }
+  checkPassword();
 </script>
 <!DOCTYPE html>
 <html lang="ja">
