@@ -1,13 +1,3 @@
-<script>
-  const PASSWORD = "6300";
-  function checkPassword(){
-    const input = prompt("パスワードを入力してください");
-    if(input === null || input !== PASSWORD){
-      document.body.innerHTML = "<div style='text-align:center;margin-top:80px;font-family:sans-serif'><h2>アクセスできません</h2><p style='margin-top:16px;color:#888'>再度アクセスしてください</p></div>";
-    }
-  }
-  checkPassword();
-</script>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -103,7 +93,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif;background:#FFF
 .export-panel h2{font-size:13px;font-weight:700;color:#8D6E63;margin-bottom:6px}
 .export-panel p{font-size:12px;color:#A1887F;margin-bottom:12px;line-height:1.6}
 .export-btn{width:100%;padding:14px;border-radius:10px;border:none;background:#E8F5E9;color:#2E7D32;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:8px}
-.lock-screen{display:none;position:fixed;inset:0;background:rgba(255,253,231,.97);z-index:2000;align-items:center;justify-content:center;flex-direction:column}
+.lock-screen{display:none;position:fixed;inset:0;background:rgba(255,253,231,.97);z-index:2000;align-items:center;justify-content:center;flex-direction:column;pointer-events:all}
 .lock-screen.open{display:flex}
 .lock-box{background:#FFFEF5;border-radius:18px;border:2px solid #F9E44A;padding:2rem 1.5rem;width:300px;max-width:92vw;box-shadow:0 8px 30px rgba(0,0,0,.13);text-align:center}
 .lock-title{font-size:17px;font-weight:800;color:#5D4037;margin-bottom:6px}
@@ -224,6 +214,18 @@ body{font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif;background:#FFF
   </div>
 </div>
 
+<!-- パスワード画面 -->
+<div id="pw-screen" style="display:flex;position:fixed;inset:0;background:#FFFDE7;z-index:3000;align-items:center;justify-content:center;flex-direction:column">
+  <div style="background:#FFFEF5;border-radius:18px;border:2px solid #F9E44A;padding:2rem 1.5rem;width:300px;max-width:92vw;box-shadow:0 8px 30px rgba(0,0,0,.13);text-align:center">
+    <div style="font-size:24px;margin-bottom:8px">🔒</div>
+    <div style="font-size:17px;font-weight:800;color:#5D4037;margin-bottom:6px">ベッドマップ</div>
+    <div style="font-size:12px;color:#A1887F;margin-bottom:18px">パスワードを入力してください</div>
+    <input type="password" id="pw-input" placeholder="パスワード" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid #F0D060;background:#FFFEF5;color:#4E342E;font-size:16px;font-family:inherit;outline:none;text-align:center;margin-bottom:12px">
+    <div id="pw-error" style="font-size:12px;color:#BF360C;margin-bottom:8px;display:none">パスワードが違います</div>
+    <button id="pw-btn" style="width:100%;padding:12px;border-radius:10px;border:none;background:#F9E44A;color:#4E342E;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer">ログイン</button>
+  </div>
+</div>
+
 <!-- ロック画面 -->
 <div class="lock-screen" id="lock-screen">
   <div class="lock-box">
@@ -295,7 +297,23 @@ body{font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif;background:#FFF
 </div>
 
 <script>
-const SK='airmat_v11';
+const SK='airmat_v12';
+
+// パスワード認証
+const APP_PASSWORD='6300';
+function checkPW(){
+  const val=document.getElementById('pw-input').value;
+  if(val===APP_PASSWORD){
+    document.getElementById('pw-screen').style.display='none';
+    document.getElementById('pw-error').style.display='none';
+  } else {
+    document.getElementById('pw-error').style.display='block';
+    document.getElementById('pw-input').value='';
+    document.getElementById('pw-input').focus();
+  }
+}
+onTap(document.getElementById('pw-btn'),checkPW);
+document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')checkPW();});
 
 const TYPES=[
   {key:'os',label:'オスカー',  short:'オ',bg:'#E8F5E9',border:'#A5D6A7',text:'#2E7D32'},
@@ -344,13 +362,7 @@ function initData(){
       mats[id]={id,type:t.key,num:i,location:'warehouse',since:null};
     }
   });
-  return{mats,history:[],staff:[
-    '小野文代','林千寿子','西恵理子','大川知愛','赤木幸代','髙口有紀','牧島文','佐々木くみ',
-    '山本彩華','古畑里奈','堤純子','井上彩花','那須拓弥','山崎安美','片山歩','安部ゆい',
-    '花木智哉','松尾紗世','伊勢侑華','進藤彩乃','堤晴香','乗峯芽衣','川上莉穂','川村美夢',
-    '土井陽平','松山由奈','石橋優希','大藏和','黒田桜子','秋永健斗','下平彩華','杉山みなみ',
-    '桒野日向那','吉田由希','古賀郁美'
-  ]};
+  return{mats,history:[],staff:[]};
 }
 
 function load(){
@@ -729,6 +741,8 @@ onTap(document.getElementById('zone-loan'),e=>{e.stopPropagation();if(selectedId
 document.querySelectorAll('.modal-bg').forEach(bg=>{
   onTap(bg,e=>{if(e.target===bg)bg.classList.remove('open');});
 });
+// ロック画面は背景タップで閉じない
+onTap(document.getElementById('lock-screen'),e=>{e.stopPropagation();});
 
 /* ---- 履歴 ---- */
 function bedLabel(bed){
