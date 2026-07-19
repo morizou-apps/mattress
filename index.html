@@ -281,18 +281,8 @@ body{font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif;background:#FFF
 <div class="modal-bg" id="modal-loan">
   <div class="modal">
     <div class="modal-title">🏥 貸出先の病棟を選択</div>
-    <div class="form-row"><label>貸出先</label>
-      <select id="loan-ward-select">
-        <option value="6階">6階</option><option value="7階">7階</option>
-        <option value="8階">8階</option><option value="9階">9階</option>
-        <option value="10階">10階</option><option value="11階">11階</option>
-        <option value="12階">12階</option>
-      </select>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-cancel" id="loan-cancel">キャンセル</button>
-      <button class="btn-primary" id="loan-ok">貸出する</button>
-    </div>
+    <div class="lock-staff-list" id="loan-ward-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    <button class="btn-cancel" id="loan-cancel" style="width:100%;margin-top:10px;padding:10px;border-radius:9px;font-size:14px;font-weight:700;border:1.5px solid #F0D060;background:#FFF9C4;color:#5D4037;font-family:inherit;cursor:pointer">キャンセル</button>
   </div>
 </div>
 
@@ -545,9 +535,8 @@ onTap(document.getElementById('cancel-btn'),()=>clearSel());
 function moveMat(target){
   if(selectedId===null)return;
   if(target==='loan'){
-    pendingLoanId=selectedId;
+    openLoanModal(selectedId);
     clearSel();
-    document.getElementById('modal-loan').classList.add('open');
     return;
   }
   doMove(selectedId,target);
@@ -601,14 +590,27 @@ function doMove(matId,target){
 }
 
 /* ---- 病棟選択モーダル ---- */
+const WARDS=['6階','7階','8階','9階','10階','11階','12階'];
+
 onTap(document.getElementById('loan-cancel'),()=>{document.getElementById('modal-loan').classList.remove('open');pendingLoanId=null;});
-onTap(document.getElementById('loan-ok'),()=>{
-  if(!pendingLoanId)return;
-  const ward=document.getElementById('loan-ward-select').value;
-  doMove(pendingLoanId,'loan:'+ward);
-  document.getElementById('modal-loan').classList.remove('open');
-  pendingLoanId=null;
-});
+
+function openLoanModal(matId){
+  pendingLoanId=matId;
+  const list=document.getElementById('loan-ward-list');
+  list.innerHTML='';
+  WARDS.forEach(ward=>{
+    const btn=document.createElement('button');
+    btn.className='lock-staff-btn';
+    btn.textContent=ward;
+    onTap(btn,()=>{
+      doMove(pendingLoanId,'loan:'+ward);
+      document.getElementById('modal-loan').classList.remove('open');
+      pendingLoanId=null;
+    });
+    list.appendChild(btn);
+  });
+  document.getElementById('modal-loan').classList.add('open');
+}
 
 /* ---- チップ生成 ---- */
 function makeChip(m){
