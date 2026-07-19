@@ -888,9 +888,13 @@ function resetLockTimer(){
   document.addEventListener(ev,resetLockTimer,{passive:true});
 });
 
-// 画面が非表示になった瞬間にロック
+// 画面が非表示になった瞬間にパスワード画面を表示
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden) showLock();
+  if(document.hidden){
+    document.getElementById('pw-screen').style.display='flex';
+    document.getElementById('pw-input').value='';
+    document.getElementById('pw-error').style.display='none';
+  }
 });
 
 // 起動時にロック画面を表示
