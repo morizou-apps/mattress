@@ -306,6 +306,8 @@ function checkPW(){
   if(val===APP_PASSWORD){
     document.getElementById('pw-screen').style.display='none';
     document.getElementById('pw-error').style.display='none';
+    document.getElementById('pw-input').value='';
+    showLock();
   } else {
     document.getElementById('pw-error').style.display='block';
     document.getElementById('pw-input').value='';
