@@ -563,7 +563,9 @@ function doMove(matId,target){
     addHist(matId,target,today(),null,'使用開始');
     showToast(ml+'→'+target);
   }else if(prev==='warehouse'&&!toBed&&target!=='warehouse'){
-    m.location=target;m.since=today();showToast(ml+'→'+(target==='repair'?'修理中':'貸出('+target.replace('loan:','')+')'));
+    m.location=target;m.since=today();
+    addHist(matId,target,today(),null,target==='repair'?'修理中':'貸出('+target.replace('loan:','')+')');
+    showToast(ml+'→'+(target==='repair'?'修理中':'貸出('+target.replace('loan:','')+'）'));
   }else if(prev==='repair'&&target==='warehouse'){
     addHist(matId,'修理中',m.since,today(),'修理完了');
     m.location='warehouse';m.since=null;showToast(ml+' 修理完了→倉庫');
